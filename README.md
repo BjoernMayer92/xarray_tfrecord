@@ -26,3 +26,7 @@ xr.testing.assert_allclose(data, data_reconstructed)
 ```
 
 Attributes of used Dimensions and coordinates will be reconstructed as well but so far not coordinates that are not used. Might be added later.
+
+Metadata is stored in the same path and with the same filename and the fileextension ".meta"
+
+There might be some bugs so use at your own risk.
