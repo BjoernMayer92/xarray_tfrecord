@@ -1,6 +1,7 @@
 import xarray as xr
 import numpy as np
 import tensorflow as tf
+import logging
 
 def _bytes_feature(value):
   """Returns a bytes_list from a string / byte."""
@@ -31,12 +32,10 @@ def feature_parse_single_sample(sample):
         var_dtype = sample[variable].dtype 
         var_feature = _get_feature_func(var_dtype)(sample[variable].values.flatten())
         var_feature_dict[variable] = var_feature
-    logging.debug("feature_parse_single_sampleFeature Single Example: ")
-    logging.debug(var_feature_dict)
     return var_feature_dict
 
 
-def _get_tf_type(dtype):
+def get_tf_type(dtype):
     if dtype in (bytes,str):
         return tf.string
 
@@ -61,16 +60,3 @@ def _get_feature_func(dtype):
 
     raise Exception(f"Unsupported type "+str(dtype))
 
-
-def xarray_to_tfrecord(data, sample_dim, feature_dims, filename):
-    writer = TFRecordWriterXarray(data_path, data, feature_dims, sample_dim)
-    for i,sample_index in enumerate(data[sample_dim]):
-        sample = data[feature_dims].sel({sample_dim:sample_index})
-        sample_feature_dict = feature_parse_single_sample(sample)
-        Features = tf.train.Features(feature=sample_feature_dict)
-        sample_example = tf.train.Example(features = Features )
-
-        writer.write(sample_example.SerializeToString())
-        logging.info(str(i))
-    writer.close()
-        

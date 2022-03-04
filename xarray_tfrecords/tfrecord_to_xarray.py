@@ -1,7 +1,20 @@
 import numpy as np
-
+import pickle
+import logging
+import os
+import xarray as xr
+from .utils import *
 
 def gen_feature_description(metadata_instance, sample_dim):
+    """ Generates the feature description dictionary given a metadata_intance and the name of the sample dimension
+
+    Args:
+        metadata_instance (metadata): Metadata instance
+        sample_dim (str): Name of the sample_dimension
+
+    Returns:
+        dict: feature description used to parse tfrecord 
+    """
     feature_variables = metadata_instance.feature_metadata["data_vars"]
     feature_description = {}
     for feature_variable in feature_variables:
@@ -14,25 +27,34 @@ def gen_feature_description(metadata_instance, sample_dim):
             feature_variable_dimension_shape.append(dimension_size)
         
         dtype = np.dtype(metadata_instance.feature_metadata["data_vars"][feature_variable]["dtype"])
-        tf_type = _get_tf_type(dtype = dtype)
+        tf_type = get_tf_type(dtype = dtype)
         
         feature_description[feature_variable] = tf.io.FixedLenFeature(feature_variable_dimension_shape, tf_type)
     return feature_description
     
 
-def _parser_function(example_proto, feature_description):
-    return tf.io.parse_single_example(example_proto, feature_description)
-
-def _get_parser_function(feature_description):
-    return lambda example_proto : _parser_function(example_proto, feature_description)
-    
-
-def _load_variable_from_parsed_dataset(dataset, variable):
-    """_summary_
+def parser_function(example_proto, feature_description):
+    """Parses a single example prototype given a the feature_description
 
     Args:
-        dataset (_type_): _description_
-        variable (_type_): _description_
+        example_proto (tensorflow.python.framework.ops.EagerTensor): Prototype to be parsed 
+        feature_description (dict): feature description used to parse tfrecord
+
+    Returns:
+        dict: Dictionary of tensorflow Tensors
+    """
+    return tf.io.parse_single_example(example_proto, feature_description)
+
+def get_parser_function(feature_description):
+    return lambda example_proto : parser_function(example_proto, feature_description)
+    
+
+def load_variable_from_parsed_dataset(dataset, variable):
+    """Loads the values for a given variable in a given dataset
+
+    Args:
+        dataset (dict): Dictionary of parsed Dataset 
+        variable (str): Name of variable
     """
     
     return np.stack([sample[variable].numpy() for sample in dataset])
@@ -41,19 +63,21 @@ def _load_variable_from_parsed_dataset(dataset, variable):
 
 def tfrecord_to_xarray(data_path):
     dataset = tf.data.TFRecordDataset(data_path)
+    data_path = os.path.abspath(data_path)
     metadata_filename = data_path.split(".")[0]+".meta"
 
     with open(metadata_filename,"rb") as handle:
         metadata_instance = pickle.load(handle)
 
     feature_description = gen_feature_description(metadata_instance, sample_dim="time")
-    dataset_parsed = dataset.map( _get_parser_function(feature_description))
+    dataset_parsed = dataset.map( get_parser_function(feature_description))
 
 
     variable_arr = []
     metadata_coords = metadata_instance.metadata["coords"]
     for variable in metadata_instance.feature_metadata["data_vars"]:
-        data = _load_variable_from_parsed_dataset(dataset_parsed, variable=variable)
+        logging.info("{} Variable loading started".format(variable))
+        data = load_variable_from_parsed_dataset(dataset_parsed, variable=variable)
         
         sample_arr = []
         metadata_variable = metadata_instance.feature_metadata["data_vars"]
@@ -79,7 +103,6 @@ def tfrecord_to_xarray(data_path):
         data_xr = data_xr.to_dataset()[variable]
         data_xr.attrs = variable_attributes
         variable_arr.append(data_xr)
-        # Add Attributes
-        #data = data.assign_attrs(metadata_instance.metadata["attrs"])
+        
 
-    return variable_arr
+    return xr.merge(variable_arr)
