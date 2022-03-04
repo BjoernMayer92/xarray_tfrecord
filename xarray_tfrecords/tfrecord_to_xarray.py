@@ -82,7 +82,7 @@ def tfrecord_to_xarray(data_path):
         sample_arr = []
         metadata_variable = metadata_instance.feature_metadata["data_vars"]
         for sample in dataset_parsed:
-            sample_arr.append(sample["tos"].numpy())
+            sample_arr.append(sample[variable].numpy())
 
         variable_dimensions = metadata_variable[variable]["dims"]
         variable_attributes = metadata_variable[variable]["attrs"]
