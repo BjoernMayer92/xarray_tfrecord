@@ -5,6 +5,11 @@ A collection of scripts that convert xarray to tfrecord files and back. This wor
 ## Quick start
 
 ### Installation
+Clone the repository
+```
+git clone git@github.com:BjoernMayer92/xarray_tfrecord.git
+```
+Go to the folder and install the package. Remark: Dependencies will be updated soon
 ```python
 pip install xrtfrecords
 ```
